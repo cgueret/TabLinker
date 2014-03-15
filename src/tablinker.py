@@ -39,7 +39,7 @@ class TabLinker(object):
     namespaces = {
       'dcterms':Namespace('http://purl.org/dc/terms/'), 
       'skos':Namespace('http://www.w3.org/2004/02/skos/core#'), 
-      'd2s':Namespace('http://lod.cedar-project.nl/core/'), 
+      'd2s':Namespace('http://example.org/ns#'), 
       'qb':Namespace('http://purl.org/linked-data/cube#'), 
       'owl':Namespace('http://www.w3.org/2002/07/owl#')
     }
@@ -83,7 +83,9 @@ class TabLinker(object):
         
         
     def initGraphs(self):
-        """Initialize the graphs, set default namespaces, and add schema information"""
+        """
+        Initialize the graphs, set default namespaces, and add schema information
+        """
     
         self.graph = ConjunctiveGraph()
         # Create a separate graph for annotations
@@ -98,15 +100,19 @@ class TabLinker(object):
         for namespace in self.annotationNamespaces:
             self.annotationGraph.namespace_manager.bind(namespace, self.annotationNamespaces[namespace])
         
+        # Add schema information
         self.log.debug('Adding some schema information (dimension and measure properties) ')
+        
         self.addDataCellProperty()
                     
-        self.graph.add((self.namespaces['d2s']['dimension'], RDF.type, self.namespaces['qb']['DimensionProperty']))
+        #self.graph.add((self.namespaces['d2s']['dimension'], RDF.type, self.namespaces['qb']['DimensionProperty']))
         
-        self.graph.add((self.namespaces['d2s']['label'], RDF.type, RDF['Property']))
+        #self.graph.add((self.namespaces['d2s']['label'], RDF.type, RDF['Property']))
     
     def addDataCellProperty(self):
-        """Add definition of data cell resource to graph"""
+        """
+        Add definition of data cell resource to graph
+        """
 
         if len(self.config.get('dataCell', 'propertyName')) > 0 :
             self.dataCellPropertyName = self.config.get('dataCell', 'propertyName')
@@ -355,11 +361,6 @@ class TabLinker(object):
         
         return source_cell_value_qname
     
-
-    
-
-
-    
     def parseSheet(self):
         """
         Parses the currently selected sheet in the workbook, takes no arguments. Iterates over all cells in the Excel sheet and produces relevant RDF Triples. 
@@ -394,21 +395,23 @@ class TabLinker(object):
                 except ValueError:
                     self.log.debug("(%s.%s) No parseable int" % (i,j))
 
+                                            
                 # Parse annotation (if any)
                 if self.config.get('annotations', 'enabled') == "1":
                     if (i,j) in self.annotations:
                         self.parseAnnotation(i, j)
 
-                # Parse even if empty
-                if (self.cellType == 'HRowHeader') :
-                    self.updateRowHierarchy(i, j)
+                # Parse cell even if empty
                 if self.cellType == 'Data':
                     self.parseData(i, j)
+                if (self.cellType == 'HRowHeader') :
+                    self.updateRowHierarchy(i, j)
                 if self.cellType == 'ColHeader' :
                     self.parseColHeader(i, j)
                 if self.cellType == 'RowProperty' :
                     self.parseRowProperty(i, j)
                 
+                # If cell not empty, check for more types
                 if not self.isEmpty(i,j) :
                     self.graph.add((self.namespaces['scope'][self.source_cell_qname],RDF.type,self.namespaces['d2s'][self.cellType]))
                     self.graph.add((self.namespaces['scope'][self.source_cell_qname],self.namespaces['d2s']['cell'],Literal(self.source_cell_name)))
@@ -634,17 +637,20 @@ class TabLinker(object):
         if self.isEmpty(i,j) and self.config.get('dataCell', 'implicitZeros') == '0':
             return
 
-        observation = BNode()
+        # Use the fully qualified name of the cell for the resource name
+        observation = self.namespaces['scope'][self.source_cell_qname]
         
-        self.graph.add((self.namespaces['scope'][self.source_cell_qname],
-                        self.namespaces['d2s']['isObservation'], 
-                        observation))
+        # It's an observation
         self.graph.add((observation,
                         RDF.type,
                         self.namespaces['qb']['Observation']))
+        
+        # It's in the data set defined by the current sheet
         self.graph.add((observation,
                         self.namespaces['qb']['dataSet'],
                         self.namespaces['scope'][self.sheet_qname]))
+        
+        # Add it's value
         if self.isEmpty(i,j) and self.config.get('dataCell', 'implicitZeros') == '1':
             self.graph.add((observation,
                             self.namespaces['d2s'][self.dataCellPropertyName],
@@ -654,18 +660,20 @@ class TabLinker(object):
                             self.namespaces['d2s'][self.dataCellPropertyName],
                             Literal(self.source_cell.value)))
         
-        # Use the row dimensions dictionary to find the properties that link data values to row headers
+        # Use the row dimensions dictionary to find the properties that link
+        # data values to row headers
         try :
             for (dim_qname, properties) in self.row_dimensions[i] :
                 for p in properties:
                     print dim_qname
                     self.graph.add((observation,
                                     self.namespaces['d2s'][p],
-                                    dim_qname))
+                                    Literal(dim_qname)))
         except KeyError :
             self.log.debug("({}.{}) No row dimension for cell".format(i,j))
         
-        # Use the column dimensions dictionary to find the objects of the d2s:dimension property
+        # Use the column dimensions dictionary to find the objects of the 
+        # d2s:dimension property
         try :
             for dim_qname in self.column_dimensions[j] :
                 self.graph.add((observation,
