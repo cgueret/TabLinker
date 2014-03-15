@@ -34,8 +34,8 @@ sys.setdefaultencoding("utf8") #@UndefinedVariable
 
 
 class TabLinker(object):
-    defaultNamespacePrefix = 'http://lod.cedar-project.nl/resource/'
-    annotationsNamespacePrefix = 'http://lod.cedar-project.nl/annotations/'
+    defaultNamespacePrefix = 'http://example.org/resource/'
+    annotationsNamespacePrefix = 'http://example.org/annotation/'
     namespaces = {
       'dcterms':Namespace('http://purl.org/dc/terms/'), 
       'skos':Namespace('http://www.w3.org/2004/02/skos/core#'), 
@@ -102,7 +102,6 @@ class TabLinker(object):
         
         # Add schema information
         self.log.debug('Adding some schema information (dimension and measure properties) ')
-        
         self.addDataCellProperty()
                     
         #self.graph.add((self.namespaces['d2s']['dimension'], RDF.type, self.namespaces['qb']['DimensionProperty']))
@@ -307,9 +306,9 @@ class TabLinker(object):
         if type(names) == dict :
             qname = self.sheet_qname
             for k in names :
-                qname = qname + '/' + self.processString(names[k])
+                qname = qname + '_' + self.processString(names[k])
         else :
-            qname = self.sheet_qname + '/' + self.processString(names)
+            qname = self.sheet_qname + '_' + self.processString(names)
         
         self.log.debug('Minted new QName: {}'.format(qname))
         return qname
@@ -404,11 +403,11 @@ class TabLinker(object):
                 # Parse cell even if empty
                 if self.cellType == 'Data':
                     self.parseData(i, j)
-                if (self.cellType == 'HRowHeader') :
+                elif (self.cellType == 'HRowHeader') :
                     self.updateRowHierarchy(i, j)
-                if self.cellType == 'ColHeader' :
+                elif self.cellType == 'ColHeader' :
                     self.parseColHeader(i, j)
-                if self.cellType == 'RowProperty' :
+                elif self.cellType == 'RowProperty' :
                     self.parseRowProperty(i, j)
                 
                 # If cell not empty, check for more types
@@ -639,6 +638,7 @@ class TabLinker(object):
 
         # Use the fully qualified name of the cell for the resource name
         observation = self.namespaces['scope'][self.source_cell_qname]
+        print observation
         
         # It's an observation
         self.graph.add((observation,
@@ -665,10 +665,9 @@ class TabLinker(object):
         try :
             for (dim_qname, properties) in self.row_dimensions[i] :
                 for p in properties:
-                    print dim_qname
                     self.graph.add((observation,
                                     self.namespaces['d2s'][p],
-                                    Literal(dim_qname)))
+                                    self.namespaces['scope'][dim_qname]))
         except KeyError :
             self.log.debug("({}.{}) No row dimension for cell".format(i,j))
         
