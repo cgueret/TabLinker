@@ -23,6 +23,8 @@ import logging
 import os
 import time
 import datetime
+import bz2
+
 #set default encoding to latin-1, to avoid encode/decode errors for special chars
 #(laurens: actually don't know why encoding/decoding is not sufficient)
 #(rinke: this is a specific requirment for the xlrd and xlutils packages)
@@ -720,7 +722,7 @@ if __name__ == '__main__':
     
     config = SafeConfigParser()
     try :
-        config.read('../config.ini')
+        config.read('config.ini')
         srcMask = config.get('paths', 'srcMask')
         targetFolder = config.get('paths','targetFolder')
         verbose = config.get('debug','verbose')
@@ -730,7 +732,7 @@ if __name__ == '__main__':
             logLevel = logging.INFO
     except :
         logging.error("Could not find configuration file, using default settings!")
-        srcMask = '../input/*_marked.xls'
+        srcMask = 'input/*_marked.xls'
         targetFolder = config.get('paths', 'targetFolder')
         logLevel = logging.DEBUG
         
@@ -754,18 +756,19 @@ if __name__ == '__main__':
         tLinker.doLink()
         logging.debug('Done linking')
 
-        turtleFile = targetFolder + tLinker.fileBasename +'.ttl'
+        turtleFile = targetFolder + tLinker.fileBasename + '.ttl' + '.bz2'
         turtleFileAnnotations = targetFolder + tLinker.fileBasename +'_annotations.ttl'
         logging.info("Generated {} triples.".format(len(tLinker.graph)))
         logging.info("Serializing graph to file {}".format(turtleFile))
         try :
-            fileWrite = open(turtleFile, "w")
+            #fileWrite = open(turtleFile, "w")
+            fileWrite = bz2.BZ2File(turtleFile, 'wb', compresslevel=9)
             #Avoid rdflib writing the graph itself, as this is buggy in windows.
             #Instead, retrieve string and then write (probably more memory intensive...)
             turtle = tLinker.graph.serialize(destination=None, format=config.get('general', 'format'))
             fileWrite.writelines(turtle)
             fileWrite.close()
-            
+                                
             #Annotations
             if tLinker.config.get('annotations', 'enabled') == "1":
                 logging.info("Generated {} triples.".format(len(tLinker.annotationGraph)))
