@@ -24,6 +24,7 @@ import os
 import time
 import datetime
 import bz2
+import os.path
 
 #set default encoding to latin-1, to avoid encode/decode errors for special chars
 #(laurens: actually don't know why encoding/decoding is not sufficient)
@@ -105,8 +106,9 @@ class TabLinker(object):
         # Add schema information
         self.log.debug('Adding some schema information (dimension and measure properties) ')
         self.addDataCellProperty()
-                    
-        #self.graph.add((self.namespaces['tablink']['dimension'], RDF.type, self.namespaces['qb']['DimensionProperty']))
+
+        # Add dimensions                    
+        self.graph.add((self.namespaces['tablink']['dimension'], RDF.type, self.namespaces['qb']['DimensionProperty']))
         
         #self.graph.add((self.namespaces['tablink']['label'], RDF.type, RDF['Property']))
     
@@ -657,9 +659,8 @@ class TabLinker(object):
         # Use the column dimensions dictionary to find the objects of the 
         # d2s:dimension property
         self.graph.add((observation,
-                        self.getColHeaderPropertyURI(j),
+                        self.namespaces['tablink']['dimension'],
                         self.getColHeaderValueURI(self.column_dimensions[j])))
-        self.graph.add((self.getColHeaderPropertyURI(j), RDF.type, self.namespaces['qb']['DimensionProperty']))
 
     def parseAnnotation(self, i, j) :
         """
@@ -747,16 +748,22 @@ if __name__ == '__main__':
         logging.info("Path searched: " + srcMask)
         quit()
     
-    for filename in files :
+    for filename in sorted(files) :
+        basename = os.path.basename(filename)
+        basename = re.search('(.*)\.xls',basename).group(1)
+        turtleFile = targetFolder + basename + '.ttl' + '.bz2'
+        if os.path.isfile(turtleFile):
+            logging.info('Skip {0} !'.format(filename))
+            continue
+        
         logging.info('Starting TabLinker for {0}'.format(filename))
         
         tLinker = TabLinker(filename, config, logLevel)
-        
+
         logging.debug('Calling linker')
         tLinker.doLink()
         logging.debug('Done linking')
 
-        turtleFile = targetFolder + tLinker.fileBasename + '.ttl' + '.bz2'
         turtleFileAnnotations = targetFolder + tLinker.fileBasename +'_annotations.ttl'
         logging.info("Generated {} triples.".format(len(tLinker.graph)))
         logging.info("Serializing graph to file {}".format(turtleFile))
