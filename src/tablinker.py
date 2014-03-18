@@ -155,14 +155,14 @@ class TabLinker(object):
         self.log.info('Starting TabLinker for all sheets in workbook')
         
         for n in range(self.rb.nsheets) :
-            self.log.debug('Starting with sheet {0}'.format(n))
+            self.log.info('Starting with sheet {0}'.format(n))
             self.r_sheet = self.rb.sheet_by_index(n)
             self.w_sheet = self.wb.get_sheet(n)
             
             self.rowns, self.colns = self.getValidRowsCols()
                  
             self.sheet_qname = urllib.quote(re.sub('\s','_',self.r_sheet.name))
-            self.log.debug('Base for QName generator set to: {0}'.format(self.sheet_qname))
+            self.log.info('Base for QName generator set to: {0}'.format(self.sheet_qname))
             
             self.log.debug('Starting parser')
             self.parseSheet()
@@ -340,8 +340,8 @@ class TabLinker(object):
         Returns:
         processedString -- The processed string
         """
-        
-        return urllib.quote(re.sub('\s|\(|\)|,|\.','_',unicode(string).strip()).encode('utf-8', 'ignore'))
+        # TODO accents too
+        return urllib.quote(re.sub('\s|\(|\)|,|\.','_',unicode(string).strip().replace('/', '-')).encode('utf-8', 'ignore'))
 
             
     def addValue(self, source_cell_value, altLabel=None):
@@ -644,6 +644,7 @@ class TabLinker(object):
                         self.namespaces['scope'][self.sheet_qname]))
         
         # Add it's value
+        # TODO type the value
         if self.isEmpty(i,j) and self.config.get('dataCell', 'implicitZeros') == '1':
             self.graph.add((observation,
                             self.namespaces['scope'][self.dataCellPropertyName],
@@ -756,8 +757,14 @@ if __name__ == '__main__':
     for filename in sorted(files) :
         basename = os.path.basename(filename)
         basename = re.search('(.*)\.xls',basename).group(1)
-        turtleFile = targetFolder + basename + '.ttl' + '.bz2'
-        if os.path.isfile(turtleFile):
+        turtleFile = targetFolder + basename + '.ttl'
+        
+        # Check if compress
+        if config.get('debug', 'compress') == '1':
+            turtleFile = turtleFile + '.bz2'
+            
+        # Skip if not overwrite mode
+        if os.path.isfile(turtleFile) and config.get('debug', 'overwrite') == '0':
             logging.info('Skip {0} !'.format(filename))
             continue
         
@@ -773,8 +780,11 @@ if __name__ == '__main__':
         logging.info("Generated {} triples.".format(len(tLinker.graph)))
         logging.info("Serializing graph to file {}".format(turtleFile))
         try :
-            #fileWrite = open(turtleFile, "w")
-            fileWrite = bz2.BZ2File(turtleFile, 'wb', compresslevel=9)
+            fileWrite = None
+            if config.get('debug', 'compress') == '1':
+                fileWrite = bz2.BZ2File(turtleFile, 'wb', compresslevel=9)
+            else:
+                fileWrite = open(turtleFile, "w")
             #Avoid rdflib writing the graph itself, as this is buggy in windows.
             #Instead, retrieve string and then write (probably more memory intensive...)
             turtle = tLinker.graph.serialize(destination=None, format=config.get('general', 'format'))
