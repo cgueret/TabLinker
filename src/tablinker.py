@@ -567,6 +567,12 @@ class TabLinker(object):
         if self.isEmpty(i,j):
             if self.insideMergeBox(i,j):
                 k, l = self.getMergeBoxCoord(i,j)
+                
+                # If we are in a vertical merge box, skip adding the dimension
+                if l == j:
+                    return
+
+                # Update cell content        
                 cell_content = self.processString(self.r_sheet.cell(k,l).value)
             else:
                 return
@@ -578,6 +584,7 @@ class TabLinker(object):
         resource = self.getColHeaderValueURI(self.column_dimensions[j])
         self.graph.add((resource, RDF.type, self.namespaces['tablink']['ColumnHeader']))
         self.graph.add((resource, self.namespaces['skos']['prefLabel'], Literal(cell_content)))
+        self.graph.add((resource, self.namespaces['tablink']['cell'], Literal(self.source_cell_name)))
         return
     
     def parseRowProperty(self, i, j) :
