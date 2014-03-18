@@ -609,11 +609,9 @@ class TabLinker(object):
         """
         Create relevant triples for the cell marked as Title (i, j are row and column)
         """
-
-        self.source_cell_value_qname = self.addValue(self.source_cell.value)
-        self.graph.add((self.namespaces['scope'][self.sheet_qname], self.namespaces['tablink']['title'], self.namespaces['scope'][self.source_cell_value_qname]))
-        self.graph.add((self.namespaces['scope'][self.source_cell_value_qname],RDF.type,self.namespaces['tablink']['Dimension']))
-        
+        self.graph.add((self.namespaces['scope'][self.sheet_qname], 
+                        self.namespaces['tablink']['title'], 
+                        Literal(self.source_cell.value)))        
         return
         
         
